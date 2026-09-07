@@ -6,13 +6,13 @@ import pymysql
 from pymysql.cursors import DictCursor
 
 
-def get_scam_case(database_url: str, case_id: int) -> dict[str, Any]:
-    """Load one ScamCase from the backend MySQL database."""
+def connect(database_url: str):
+    """Open a connection to the backend MySQL database."""
     url = urlparse(database_url)
     if url.scheme != "mysql" or not url.hostname or not url.path:
         raise ValueError("DATABASE_URL must be a valid mysql:// URL")
 
-    connection = pymysql.connect(
+    return pymysql.connect(
         host=url.hostname,
         port=url.port or 3306,
         user=unquote(url.username or ""),
@@ -20,6 +20,17 @@ def get_scam_case(database_url: str, case_id: int) -> dict[str, Any]:
         database=unquote(url.path.lstrip("/")),
         cursorclass=DictCursor,
     )
+
+
+def parse_indicators(scam_case: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(scam_case["indicators"], str):
+        scam_case["indicators"] = json.loads(scam_case["indicators"])
+    return scam_case
+
+
+def get_scam_case(database_url: str, case_id: int) -> dict[str, Any]:
+    """Load one ScamCase from the backend MySQL database."""
+    connection = connect(database_url)
     try:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -38,6 +49,25 @@ def get_scam_case(database_url: str, case_id: int) -> dict[str, Any]:
     if scam_case is None:
         raise LookupError(f"ScamCase {case_id} was not found")
 
-    if isinstance(scam_case["indicators"], str):
-        scam_case["indicators"] = json.loads(scam_case["indicators"])
-    return scam_case
+    return parse_indicators(scam_case)
+
+
+def list_scam_cases(database_url: str, verified_only: bool = True) -> list[dict[str, Any]]:
+    """Load scam cases for indexing, optionally limited to verified records."""
+    connection = connect(database_url)
+    try:
+        with connection.cursor() as cursor:
+            query = """
+                SELECT id, title, scamType, description, sampleText, indicators,
+                       riskLevel, source, verified
+                FROM ScamCase
+            """
+            if verified_only:
+                query += " WHERE verified = TRUE"
+            query += " ORDER BY id"
+            cursor.execute(query)
+            scam_cases = cursor.fetchall()
+    finally:
+        connection.close()
+
+    return [parse_indicators(scam_case) for scam_case in scam_cases]

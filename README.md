@@ -19,8 +19,10 @@ The health endpoint and the first retrieval foundation are implemented. The foun
 | `app/api/router.py` | Combines API route modules. |
 | `app/schemas/` | Pydantic request and response models. |
 | `app/services/embedding_service.py` | Generates one Gemini embedding with dimension validation. |
+| `app/services/scam_case_indexer.py` | Converts backend scam cases into Qdrant documents. |
 | `app/repositories/qdrant_store.py` | Creates/checks the Qdrant collection, upserts, and searches vectors. |
 | `app/repositories/scam_case_repository.py` | Reads one backend `ScamCase` from MySQL. |
+| `scripts/index_scam_cases.py` | Batch-indexes backend scam cases. |
 | `scripts/verify_retrieval.py` | One-vector Gemini → Qdrant insert/search smoke test. |
 | `tests/` | Automated service tests. |
 
@@ -82,6 +84,22 @@ python -m scripts.index_scam_case 1
 ```
 
 This is a local development step only. It indexes one selected case, not the full catalogue.
+
+## Batch-index scam cases
+
+For production knowledge, index only records marked `verified=true` in the backend database:
+
+```powershell
+cd ai-service
+.\.venv\Scripts\Activate.ps1
+python -m scripts.index_scam_cases
+```
+
+The script is safe to re-run: each database case has a stable Qdrant point ID and is replaced rather than duplicated. The current local synthetic catalogue is unverified, so it requires this explicit development-only command:
+
+```powershell
+python -m scripts.index_scam_cases --include-unverified
+```
 
 ## Retrieval API
 
