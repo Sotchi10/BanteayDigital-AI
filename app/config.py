@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     ai_service_api_key: SecretStr | None = None
     qdrant_url: AnyHttpUrl = "http://localhost:6333"
     qdrant_collection: str = Field(default="scam_knowledge_v1", min_length=1)
+    database_url: str | None = None
 
     gemini_api_key: SecretStr | None = None
     gemini_model: str = Field(default="gemini-2.5-flash-lite", min_length=1)
@@ -40,4 +41,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Load settings once per process."""
     return Settings()
-
