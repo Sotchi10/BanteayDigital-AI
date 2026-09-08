@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import Distance, FieldCondition, Filter, MatchValue, PointStruct, VectorParams
 
 from app.config import get_settings
 
@@ -49,11 +49,17 @@ class QdrantStore:
         )
 
     def search(self, embedding: list[float], limit: int = 3):
-        """Return closest vector matches for a query embedding."""
+        """Return only sufficiently similar, eligible scam-case matches."""
         if len(embedding) != self.vector_size:
             raise ValueError("Vector size does not match the configured collection size")
+        settings = get_settings()
+        conditions = [FieldCondition(key="kind", match=MatchValue(value="scam_case"))]
+        if settings.retrieval_verified_only:
+            conditions.append(FieldCondition(key="verified", match=MatchValue(value=True)))
         return self.client.query_points(
             collection_name=self.collection_name,
             query=embedding,
             limit=limit,
+            query_filter=Filter(must=conditions),
+            score_threshold=settings.retrieval_min_score,
         ).points

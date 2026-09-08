@@ -3,7 +3,7 @@
 from uuid import NAMESPACE_URL, uuid5
 
 from app.repositories.qdrant_store import QdrantStore
-from app.services.embedding_service import embed_text
+from app.services.embedding_service import embed_document
 
 
 def build_document(scam_case: dict) -> str:
@@ -24,7 +24,7 @@ def index_scam_case(scam_case: dict, store: QdrantStore) -> None:
     point_id = str(uuid5(NAMESPACE_URL, f"banteay-digital/scam-case/{scam_case['id']}"))
     store.upsert(
         point_id=point_id,
-        embedding=embed_text(build_document(scam_case)),
+        embedding=embed_document(build_document(scam_case)),
         payload={
             "kind": "scam_case",
             "caseId": scam_case["id"],

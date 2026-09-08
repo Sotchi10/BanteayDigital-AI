@@ -21,7 +21,7 @@ def test_index_scam_case_uses_a_stable_point_and_complete_payload(monkeypatch) -
         "verified": True,
     }
     store = FakeStore()
-    monkeypatch.setattr(scam_case_indexer, "embed_text", lambda document: [0.0] * 768)
+    monkeypatch.setattr(scam_case_indexer, "embed_document", lambda document: [0.0] * 768)
 
     scam_case_indexer.index_scam_case(scam_case, store)
 
