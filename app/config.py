@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     embedding_model: str = Field(default="gemini-embedding-001", min_length=1)
     embedding_dimensions: int = Field(default=768, ge=1)
 
+    tesseract_cmd: str | None = None
+    ocr_languages: str = Field(default="eng", min_length=1)
+    ocr_tessdata_dir: str | None = None
+    ocr_timeout_seconds: int = Field(default=20, ge=1, le=120)
+    ocr_max_image_bytes: int = Field(default=10 * 1024 * 1024, ge=1, le=25 * 1024 * 1024)
+
     @model_validator(mode="after")
     def validate_production_settings(self) -> "Settings":
         if self.environment == "production" and self.ai_service_api_key is None:

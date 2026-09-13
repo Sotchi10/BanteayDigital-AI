@@ -16,6 +16,7 @@ The health endpoint and the first retrieval foundation are implemented. The foun
 | `app/config.py` | Pydantic environment settings and production validation. |
 | `app/api/health.py` | Health-check route. |
 | `app/api/retrieval.py` | Knowledge-base retrieval route. |
+| `app/api/ocr.py` | Image-to-text endpoint for scan screenshots. |
 | `app/api/router.py` | Combines API route modules. |
 | `app/schemas/` | Pydantic request and response models. |
 | `app/services/embedding_service.py` | Generates one Gemini embedding with dimension validation. |
@@ -60,6 +61,41 @@ pytest
 ## Configuration
 
 Never commit `.env` or provider keys. `PORT` must be between 1 and 65535. `AI_SERVICE_API_KEY` is required if `ENVIRONMENT=production`. When it is set, retrieval requests must send it in the `X-AI-Service-Key` header. Set the same value in `backend/.env` so the backend can call this service. The Qdrant and Gemini variables are not used by the health endpoint, but are required by the retrieval smoke test.
+
+## OCR image-to-text
+
+The service uses the local Tesseract executable for screenshot/photo text extraction.
+Set `TESSERACT_CMD`, `OCR_LANGUAGES` (for example `khm+eng`), and the optional
+size/timeout limits in `.env`. Use `OCR_TESSDATA_DIR=.tessdata` to keep extra
+language data local to this service. The configured executable must have every
+requested language installed in its `tessdata` directory. On Windows verify the
+machine-wide languages with:
+
+```powershell
+& $env:TESSERACT_CMD --list-langs
+```
+
+`OCR_TESSDATA_DIR` should be a relative directory without spaces on Windows;
+for another location, configure Tesseract's `TESSDATA_PREFIX` environment variable.
+To add Khmer language data to the local directory (which is intentionally ignored
+by Git), run from `ai-service`:
+
+```powershell
+New-Item -ItemType Directory -Path .tessdata -Force
+Invoke-WebRequest https://github.com/tesseract-ocr/tessdata_fast/raw/main/khm.traineddata -OutFile .tessdata\khm.traineddata
+Copy-Item "C:\Program Files\Tesseract-OCR\tessdata\eng.traineddata" .tessdata\eng.traineddata
+```
+
+Send a multipart image to `POST /api/v1/ocr`. The image is processed in memory
+only and is not stored by the AI service:
+
+```powershell
+$headers = @{ "X-AI-Service-Key" = "your-AI_SERVICE_API_KEY" }
+Invoke-RestMethod http://localhost:8000/api/v1/ocr -Method Post -Headers $headers -Form @{ image = Get-Item .\scan.png }
+```
+
+The response includes `text`, the languages used, and `character_count`. The caller
+can submit `text` to the existing text scan endpoint after extraction.
 
 ## Retrieval smoke test
 
