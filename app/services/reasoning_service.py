@@ -12,6 +12,7 @@ class ReasoningError(RuntimeError):
 
 
 def build_prompt(request: AnalyzeRequest) -> str:
+    response_language = "Khmer" if request.language == "km" else "English"
     return f"""You are a helpful community safety assistant reviewing a possible scam.
 
 Return the requested JSON only. Keep the result simple, clear, and useful to a
@@ -24,6 +25,11 @@ recommendedActions. You may use the supplied findings and similar cases as
 helpful context, but citations and proof are not required during this testing
 phase. Do not invent organizations, facts, or personal details. Do not call
 content a confirmed scam; explain the concrete safety signals in plain language.
+Write the summary, reasons, and recommendedActions in {response_language}.
+When the requested language is Khmer, use Khmer script for every user-facing
+summary, reason, and recommended action. Do not translate, rewrite, normalize,
+or repeat the scan input: preserve it exactly as supplied. Keep URLs, usernames,
+technical identifiers, and enum values unchanged when they must be referenced.
 
 Scan input ({request.type}):
 {request.value}

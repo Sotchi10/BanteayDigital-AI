@@ -3,7 +3,8 @@ from types import SimpleNamespace
 from fastapi.testclient import TestClient
 
 from app.api import retrieval
-from app.schemas.analysis import GroundedAnalysis
+from app.schemas.analysis import AnalyzeRequest, GroundedAnalysis
+from app.services.reasoning_service import build_prompt
 from app.config import get_settings
 from app.main import app
 
@@ -109,3 +110,11 @@ def test_analyze_returns_grounded_json(monkeypatch) -> None:
         "summary": "The scan asks for an OTP and resembles the retrieved case.",
         "recommendedActions": ["Do not share your OTP."],
     }
+
+
+def test_analyze_prompt_uses_requested_language() -> None:
+    english = build_prompt(AnalyzeRequest(type="TEXT", value="Send your OTP"))
+    khmer = build_prompt(AnalyzeRequest(type="TEXT", value="Send your OTP", language="km"))
+
+    assert "in English" in english
+    assert "in Khmer" in khmer
