@@ -1,5 +1,23 @@
 # Banteay Digital AI Service
 
+## URL scan evidence
+
+The backend URL scanner sends a typed `urlEvidence` object to the existing
+`POST /api/v1/analyze` endpoint alongside `type: "URL"` and `value`.
+It includes VirusTotal status, analysis date, engine statistics, flagged engine
+labels, source (`report` or `analysis`), and an optional final URL. Completed
+evidence requires nonempty valid statistics. Existing text requests continue
+to work without this field. The Gemini prompt treats provider data as untrusted
+context and explains that undetected verdicts and zero detections do not prove
+safety. The backend enforces risk floors and supplies fallback guidance.
+
+`VIRUSTOTAL_API_KEY` belongs in the Express backend configuration. No VirusTotal
+key is needed in this AI service. See `Backend/URL_SCAN.md` for job endpoints,
+frontend polling, rate limits, and operational constraints.
+
+Run tests without reading any `.env` file:
+`python scripts/test_without_env.py -q`.
+
 This is the FastAPI foundation for Banteay Digital's future AI workflow:
 
 ```text
