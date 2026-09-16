@@ -16,13 +16,40 @@ class RetrievedScamCase(BaseModel):
     risk_level: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] = Field(alias="riskLevel")
     score: float = Field(ge=0, le=1)
     verified: bool
+    description: str | None = Field(default=None, max_length=2_000)
+    sample_text: str | None = Field(default=None, max_length=10_000, alias="sampleText")
+    indicators: list[str] = Field(default_factory=list, max_length=50)
+
+
+class RiskSignal(BaseModel):
+    category: Literal[
+        "CREDENTIAL_THEFT",
+        "PAYMENT_OR_ASSET_TRANSFER",
+        "IMPERSONATION",
+        "URGENCY_OR_COERCION",
+        "REMOTE_ACCESS_OR_MALWARE",
+        "INVESTMENT_OR_TASK_SCAM",
+        "EXTORTION_OR_THREAT",
+        "IDENTITY_THEFT",
+        "SUSPICIOUS_LINK",
+        "SOCIAL_ENGINEERING",
+        "OTHER",
+    ]
+    severity: Literal["CAUTION", "SUSPICIOUS", "CRITICAL"]
+    evidence: str = Field(min_length=1, max_length=240)
+    message: str = Field(min_length=1, max_length=280)
 
 
 class AnalyzeRequest(BaseModel):
     type: Literal["TEXT", "URL"]
     value: str = Field(min_length=1, max_length=10_000)
+    language: Literal["en", "km"] = "en"
     deterministic_findings: list[AnalysisFinding] = Field(default_factory=list, alias="deterministicFindings")
     retrieved_cases: list[RetrievedScamCase] = Field(default_factory=list, alias="retrievedCases")
+    retrieval_status: Literal["AVAILABLE", "UNAVAILABLE", "NOT_REQUESTED"] = Field(
+        default="NOT_REQUESTED", alias="retrievalStatus"
+    )
+    top_similarity: float | None = Field(default=None, ge=0, le=1, alias="topSimilarity")
     url_evidence: "UrlEvidence | None" = Field(default=None, alias="urlEvidence")
 
     @model_validator(mode="after")
@@ -77,5 +104,9 @@ class GroundedAnalysis(BaseModel):
         "SUSPICIOUS",
         "STRONG_SCAM_INDICATORS",
     ]
+    evidence_sufficiency: Literal["SUFFICIENT", "AMBIGUOUS", "INSUFFICIENT"] = Field(
+        alias="evidenceSufficiency"
+    )
+    risk_signals: list[RiskSignal] = Field(max_length=8, alias="riskSignals")
     summary: str = Field(min_length=1, max_length=280)
     recommended_actions: list[str] = Field(min_length=1, max_length=3, alias="recommendedActions")

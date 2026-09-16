@@ -166,13 +166,22 @@ Invoke-RestMethod http://localhost:8000/api/v1/retrieve -Method Post -ContentTyp
 
 The request shape matches the backend scan API, so the backend can call it without translating `type` and `value`. The endpoint embeds labelled queries (`TEXT` or `URL`) and returns only `scam_case` records above `RETRIEVAL_MIN_SCORE` (default `0.70`). In production, it defaults to verified cases only. A new backend scan includes these as `aiMatches`; deterministic scan results continue to work if retrieval is unavailable.
 
-## Simple AI analysis response (testing)
+## Structured AI analysis response
 
 `POST /api/v1/analyze` deliberately returns a small community-facing response while the integration is being tested:
 
 ```json
 {
   "assessment": "SUSPICIOUS",
+  "evidenceSufficiency": "SUFFICIENT",
+  "riskSignals": [
+    {
+      "category": "CREDENTIAL_THEFT",
+      "severity": "CRITICAL",
+      "evidence": "send the code",
+      "message": "The message asks for a private verification code."
+    }
+  ],
   "summary": "This message asks for a one-time password, which can put your account at risk.",
   "recommendedActions": [
     "Do not share the code.",
@@ -181,7 +190,16 @@ The request shape matches the backend scan API, so the backend can call it witho
 }
 ```
 
-Retrieved cases and deterministic findings are accepted as context, but the model is not required to cite them in this phase. The backend maps this minimal response to its existing stored fields.
+The model assesses submitted content independently before using retrieval as
+supporting context. Every model-generated risk signal must quote the submitted
+input. The backend rejects ungrounded signal quotes and enforces an assessment
+floor from valid signals, deterministic findings, and URL-reputation evidence.
+No retrieval match and unavailable retrieval are explicitly treated as unknown,
+not as evidence of safety.
+
+Scam-case retrieval includes the moderated case description, sample text, and
+indicators in the LLM context. Re-run `python -m scripts.index_scam_cases` after
+deploying this version so existing Qdrant payloads receive those fields.
 
 ## Text-analysis safeguards
 
@@ -193,7 +211,8 @@ warning signals, not proof of a scam, and are provided to the LLM as context.
 
 ## Text benchmark
 
-The bilingual starter benchmark is at `../backend/data/text_benchmark.json`.
+The bilingual deterministic starter benchmark is at
+`../BanteayDigital-Backend/data/text_benchmark.csv`.
 It contains labelled synthetic cases only; replace or expand it with
 moderator-verified community messages before using its metrics for a release
 decision. From `backend`, run:
@@ -206,14 +225,15 @@ The report shows true positives, false positives, missed scams, precision,
 recall, specificity, and accuracy for the deterministic text layer. Add
 `-- --strict` to make the command fail if precision or recall is below 80%.
 
-With Qdrant, Gemini, and the AI service running, use the same cases to verify
-retrieval and the LLM response contract:
+With Qdrant, Gemini, and the AI service running, use the separate novelty suite
+to measure the LLM on scam wording outside the seed catalogue:
 
 ```powershell
-cd ai-service
-python -m scripts.benchmark_text_service
+cd BanteayDigital-AI
+python -m scripts.benchmark_text_service --strict
 ```
 
-This live runner reports retrieved-match counts and validates the minimal AI
-response for every case. It is an integration check, not an LLM-accuracy score;
-review its output against moderator labels before changing production settings.
+This live runner reports retrieval coverage, assessments, grounded signal
+counts, and pass/fail results against minimum expected assessments. The cases
+remain synthetic; expand them with moderator-verified, privacy-reviewed examples
+before using the pass rate as a release gate.

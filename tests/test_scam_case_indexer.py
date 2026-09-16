@@ -34,6 +34,9 @@ def test_index_scam_case_uses_a_stable_point_and_complete_payload(monkeypatch) -
         "title": "Fake bank reward",
         "scamType": "phishing",
         "riskLevel": "HIGH",
+        "description": "A fake banking prize message.",
+        "sampleText": "You won a reward.",
+        "indicators": ["prize", "bank impersonation"],
         "source": "test",
         "verified": True,
     }

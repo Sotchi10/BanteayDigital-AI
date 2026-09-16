@@ -24,7 +24,13 @@ def test_url_endpoint_passes_typed_evidence_to_reasoning(monkeypatch):
         assert request.url_evidence.stats.malicious == 2
         assert request.url_evidence.analysis_date == 1700000000
         assert request.url_evidence.detections[0].result == "phishing"
-        return GroundedAnalysis(assessment="SUSPICIOUS", summary="Two engines flagged this URL.", recommendedActions=["Verify the sender independently."])
+        return GroundedAnalysis(
+            assessment="SUSPICIOUS",
+            evidenceSufficiency="SUFFICIENT",
+            riskSignals=[],
+            summary="Two engines flagged this URL.",
+            recommendedActions=["Verify the sender independently."],
+        )
 
     monkeypatch.setattr(retrieval, "analyze_scan", fake_analyze)
     key = get_settings().ai_service_api_key

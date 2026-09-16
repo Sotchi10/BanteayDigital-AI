@@ -1,0 +1,75 @@
+[
+  {
+    "id": "novel-payment-01",
+    "language": "en",
+    "label": "SCAM",
+    "minimumAssessment": "SUSPICIOUS",
+    "text": "For account migration, convert the remaining balance into game credits and send the redemption string to the migration desk."
+  },
+  {
+    "id": "novel-remote-access-01",
+    "language": "en",
+    "label": "SCAM",
+    "minimumAssessment": "SUSPICIOUS",
+    "text": "Pair your phone with our technician using the screen-control utility so we can repair the secure wallet."
+  },
+  {
+    "id": "novel-extortion-01",
+    "language": "en",
+    "label": "SCAM",
+    "minimumAssessment": "STRONG_SCAM_INDICATORS",
+    "text": "We recorded a private video from your camera. Move 600 credits to this wallet or the recording goes to your contacts."
+  },
+  {
+    "id": "novel-identity-01",
+    "language": "en",
+    "label": "SCAM",
+    "minimumAssessment": "SUSPICIOUS",
+    "text": "Activate the supplier profile by photographing both sides of your identity card beside a live selfie."
+  },
+  {
+    "id": "novel-task-01",
+    "language": "en",
+    "label": "SCAM",
+    "minimumAssessment": "SUSPICIOUS",
+    "text": "Your quality-review earnings are ready, but you must add funds to your work wallet to unlock the next batch."
+  },
+  {
+    "id": "novel-recovery-01",
+    "language": "en",
+    "label": "SCAM",
+    "minimumAssessment": "STRONG_SCAM_INDICATORS",
+    "text": "Complete the vault upgrade by typing all recovery words into the attached synchronization form."
+  },
+  {
+    "id": "novel-km-payment-01",
+    "language": "km",
+    "label": "SCAM",
+    "minimumAssessment": "SUSPICIOUS",
+    "text": "ដើម្បីទទួលប្រាក់រង្វាន់ សូមផ្ទេរប្រាក់ទៅកាបូបថ្មី ហើយផ្ញើលេខកូដបញ្ជាក់មកយើង។"
+  },
+  {
+    "id": "benign-safety-01",
+    "language": "en",
+    "label": "SAFE",
+    "minimumAssessment": "NO_STRONG_WARNING_SIGNS",
+    "allowedAssessments": ["NO_STRONG_WARNING_SIGNS"],
+    "text": "Security reminder: never send a password, verification code, or recovery phrase to another person."
+  },
+  {
+    "id": "benign-schedule-01",
+    "language": "en",
+    "label": "SAFE",
+    "minimumAssessment": "NO_STRONG_WARNING_SIGNS",
+    "allowedAssessments": ["NO_STRONG_WARNING_SIGNS"],
+    "text": "The library moved tomorrow's digital-safety workshop from room four to the main hall."
+  },
+  {
+    "id": "benign-km-safety-01",
+    "language": "km",
+    "label": "SAFE",
+    "minimumAssessment": "NO_STRONG_WARNING_SIGNS",
+    "allowedAssessments": ["NO_STRONG_WARNING_SIGNS"],
+    "text": "សូមកុំផ្ញើលេខកូដ OTP ឬពាក្យសម្ងាត់ឱ្យនរណាម្នាក់។"
+  }
+]

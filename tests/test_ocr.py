@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from app.api import ocr
 from app.config import get_settings
 from app.main import app
+from app.services import ocr_service
 
 
 def test_ocr_extracts_uploaded_image_text(monkeypatch) -> None:
@@ -39,3 +40,26 @@ def test_ocr_rejects_non_image_upload() -> None:
         )
 
     assert response.status_code == 415
+
+
+def test_ocr_discovers_tesseract_and_uses_installed_english(monkeypatch) -> None:
+    settings = get_settings().model_copy(
+        update={"tesseract_cmd": None, "ocr_languages": "eng", "ocr_tessdata_dir": ".missing-test-tessdata"}
+    )
+    monkeypatch.setattr(ocr_service.shutil, "which", lambda command: "C:/Tesseract/tesseract.exe")
+    monkeypatch.setattr(ocr_service.pytesseract, "get_languages", lambda config: ["eng", "osd"])
+    monkeypatch.setattr(ocr_service.pytesseract, "image_to_string", lambda image, lang, config, timeout: "Suspicious message")
+    monkeypatch.setattr(ocr_service.Image, "open", lambda _stream: _FakeImage())
+
+    assert ocr_service.extract_text(b"image-bytes", settings) == "Suspicious message"
+
+
+class _FakeImage:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return None
+
+    def load(self):
+        return None

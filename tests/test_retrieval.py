@@ -77,6 +77,15 @@ def test_analyze_returns_grounded_json(monkeypatch) -> None:
         "analyze_scan",
         lambda request: GroundedAnalysis(
             assessment="SUSPICIOUS",
+            evidenceSufficiency="SUFFICIENT",
+            riskSignals=[
+                {
+                    "category": "CREDENTIAL_THEFT",
+                    "severity": "CRITICAL",
+                    "evidence": "Send your OTP now",
+                    "message": "The message asks for an OTP.",
+                }
+            ],
             summary="The scan asks for an OTP and resembles the retrieved case.",
             recommendedActions=["Do not share your OTP."],
         ),
@@ -106,6 +115,44 @@ def test_analyze_returns_grounded_json(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "assessment": "SUSPICIOUS",
+        "evidenceSufficiency": "SUFFICIENT",
+        "riskSignals": [
+            {
+                "category": "CREDENTIAL_THEFT",
+                "severity": "CRITICAL",
+                "evidence": "Send your OTP now",
+                "message": "The message asks for an OTP.",
+            }
+        ],
         "summary": "The scan asks for an OTP and resembles the retrieved case.",
         "recommendedActions": ["Do not share your OTP."],
     }
+
+
+def test_analysis_prompt_uses_requested_explanation_language() -> None:
+    from app.schemas.analysis import AnalyzeRequest
+    from app.services.reasoning_service import build_prompt
+
+    prompt = build_prompt(AnalyzeRequest(type="TEXT", value="Send your OTP", language="km"))
+
+    assert "summary and every recommended action in Khmer" in prompt
+
+
+def test_analysis_prompt_treats_missing_retrieval_as_unknown_not_safe() -> None:
+    from app.schemas.analysis import AnalyzeRequest
+    from app.services.reasoning_service import build_prompt
+
+    prompt = build_prompt(
+        AnalyzeRequest(
+            type="TEXT",
+            value="Move the balance into a digital voucher and send me the code.",
+            retrievalStatus="AVAILABLE",
+            topSimilarity=None,
+        )
+    )
+
+    assert "No retrieved cases" in prompt
+    assert "must never be treated as evidence that content is safe" in prompt
+    assert "NO_STRONG_WARNING_SIGNS" in prompt
+    assert "affirmatively benign" in prompt
+    assert "Retrieval status: AVAILABLE" in prompt
