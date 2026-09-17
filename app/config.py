@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     retrieval_min_score: float = Field(default=0.70, ge=0, le=1)
     retrieval_verified_only: bool | None = None
     database_url: str | None = None
+    database_trust_private_network: bool = False
 
     gemini_api_key: SecretStr | None = None
     gemini_model: str = Field(default="gemini-3.5-flash-lite", min_length=1)
@@ -61,9 +62,16 @@ class Settings(BaseSettings):
             if self.database_url:
                 from urllib.parse import parse_qs, urlparse
 
-                parameters = parse_qs(urlparse(self.database_url).query)
-                if parameters.get("sslaccept") != ["strict"]:
-                    raise ValueError("Production DATABASE_URL must include sslaccept=strict")
+                parsed_database_url = urlparse(self.database_url)
+                parameters = parse_qs(parsed_database_url.query)
+                trusts_railway_private_network = (
+                    self.database_trust_private_network
+                    and (parsed_database_url.hostname or "").endswith(".railway.internal")
+                )
+                if parameters.get("sslaccept") != ["strict"] and not trusts_railway_private_network:
+                    raise ValueError(
+                        "Production DATABASE_URL must include sslaccept=strict or use an explicitly trusted Railway private host"
+                    )
             hosts = self.allowed_host_list
             if not hosts or "*" in hosts:
                 raise ValueError("ALLOWED_HOSTS must explicitly list trusted hosts in production")

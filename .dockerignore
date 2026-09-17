@@ -9,4 +9,5 @@ __pycache__
 .backend-url-implementation
 tests
 data
-scripts
+scripts/*
+!scripts/index_scam_cases.py
