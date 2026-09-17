@@ -1,24 +1,27 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+BoundedIndicator = Annotated[str, Field(min_length=1, max_length=500)]
+BoundedAction = Annotated[str, Field(min_length=1, max_length=500)]
+
 
 class AnalysisFinding(BaseModel):
-    code: str
-    message: str
+    code: str = Field(min_length=1, max_length=100)
+    message: str = Field(min_length=1, max_length=500)
     severity: Literal["CAUTION", "SUSPICIOUS"]
 
 
 class RetrievedScamCase(BaseModel):
     case_id: int = Field(alias="caseId")
-    title: str
-    scam_type: str = Field(alias="scamType")
+    title: str = Field(min_length=1, max_length=255)
+    scam_type: str = Field(min_length=1, max_length=100, alias="scamType")
     risk_level: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] = Field(alias="riskLevel")
     score: float = Field(ge=0, le=1)
     verified: bool
     description: str | None = Field(default=None, max_length=2_000)
     sample_text: str | None = Field(default=None, max_length=10_000, alias="sampleText")
-    indicators: list[str] = Field(default_factory=list, max_length=50)
+    indicators: list[BoundedIndicator] = Field(default_factory=list, max_length=50)
 
 
 class RiskSignal(BaseModel):
@@ -44,8 +47,8 @@ class AnalyzeRequest(BaseModel):
     type: Literal["TEXT", "URL"]
     value: str = Field(min_length=1, max_length=10_000)
     language: Literal["en", "km"] = "en"
-    deterministic_findings: list[AnalysisFinding] = Field(default_factory=list, alias="deterministicFindings")
-    retrieved_cases: list[RetrievedScamCase] = Field(default_factory=list, alias="retrievedCases")
+    deterministic_findings: list[AnalysisFinding] = Field(default_factory=list, max_length=50, alias="deterministicFindings")
+    retrieved_cases: list[RetrievedScamCase] = Field(default_factory=list, max_length=10, alias="retrievedCases")
     retrieval_status: Literal["AVAILABLE", "UNAVAILABLE", "NOT_REQUESTED"] = Field(
         default="NOT_REQUESTED", alias="retrievalStatus"
     )
@@ -97,6 +100,8 @@ AnalyzeRequest.model_rebuild()
 class GroundedAnalysis(BaseModel):
     """Small, user-facing result returned by the testing AI integration."""
 
+    risk_level: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] = Field(alias="riskLevel")
+    confidence_score: float = Field(ge=0, le=1, alias="confidenceScore")
     assessment: Literal[
         "NO_STRONG_WARNING_SIGNS",
         "INSUFFICIENT_EVIDENCE",
@@ -109,4 +114,4 @@ class GroundedAnalysis(BaseModel):
     )
     risk_signals: list[RiskSignal] = Field(max_length=8, alias="riskSignals")
     summary: str = Field(min_length=1, max_length=280)
-    recommended_actions: list[str] = Field(min_length=1, max_length=3, alias="recommendedActions")
+    recommended_actions: list[BoundedAction] = Field(min_length=1, max_length=3, alias="recommendedActions")

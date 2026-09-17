@@ -55,6 +55,8 @@ def test_ocr_discovers_tesseract_and_uses_installed_english(monkeypatch) -> None
 
 
 class _FakeImage:
+    size = (100, 100)
+
     def __enter__(self):
         return self
 

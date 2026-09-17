@@ -20,7 +20,10 @@ def embed_text(text: str, *, task_type: str | None = None) -> list[float]:
         raise EmbeddingError("GEMINI_API_KEY must be configured before generating embeddings")
 
     try:
-        client = genai.Client(api_key=settings.gemini_api_key.get_secret_value())
+        client = genai.Client(
+            api_key=settings.gemini_api_key.get_secret_value(),
+            http_options=types.HttpOptions(timeout=settings.gemini_timeout_ms),
+        )
         config = types.EmbedContentConfig(
             output_dimensionality=settings.embedding_dimensions,
             task_type=task_type,

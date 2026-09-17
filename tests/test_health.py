@@ -11,5 +11,4 @@ def test_health_endpoint_returns_service_status() -> None:
     assert response.json() == {
         "status": "ok",
         "service": "banteay-ai-service",
-        "environment": "development",
     }

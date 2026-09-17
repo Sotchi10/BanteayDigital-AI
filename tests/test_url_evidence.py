@@ -25,6 +25,8 @@ def test_url_endpoint_passes_typed_evidence_to_reasoning(monkeypatch):
         assert request.url_evidence.analysis_date == 1700000000
         assert request.url_evidence.detections[0].result == "phishing"
         return GroundedAnalysis(
+            riskLevel="HIGH",
+            confidenceScore=0.9,
             assessment="SUSPICIOUS",
             evidenceSufficiency="SUFFICIENT",
             riskSignals=[],

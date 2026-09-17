@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from threading import BoundedSemaphore
+
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.dependencies import require_service_key
 from app.config import get_settings
@@ -11,6 +13,15 @@ from app.services.reasoning_service import ReasoningError, analyze_scan
 from app.services.scam_case_indexer import index_scam_case
 
 router = APIRouter(prefix="/api/v1", tags=["retrieval"])
+_ai_slots = BoundedSemaphore(get_settings().ai_max_concurrency)
+
+
+def _acquire_ai_slot() -> None:
+    if not _ai_slots.acquire(blocking=False):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="AI service is busy; try again shortly",
+        )
 
 
 def build_retrieval_query(request: RetrieveRequest) -> str:
@@ -25,6 +36,7 @@ def build_retrieval_query(request: RetrieveRequest) -> str:
 )
 def retrieve(request: RetrieveRequest) -> RetrieveResponse:
     """Find knowledge-base entries similar to the submitted scan input."""
+    _acquire_ai_slot()
     try:
         embedding = embed_query(build_retrieval_query(request))
         store = QdrantStore()
@@ -32,6 +44,8 @@ def retrieve(request: RetrieveRequest) -> RetrieveResponse:
         points = store.search(embedding, limit=request.limit)
     except (EmbeddingError, RuntimeError, ValueError) as error:
         raise HTTPException(status_code=503, detail="Retrieval is unavailable") from error
+    finally:
+        _ai_slots.release()
 
     matches = [
         RetrievedMatch(
@@ -51,10 +65,13 @@ def retrieve(request: RetrieveRequest) -> RetrieveResponse:
 )
 def analyze(request: AnalyzeRequest) -> GroundedAnalysis:
     """Generate a grounded explanation from scan evidence supplied by the backend."""
+    _acquire_ai_slot()
     try:
         return analyze_scan(request)
     except ReasoningError as error:
         raise HTTPException(status_code=503, detail="Grounded analysis is unavailable") from error
+    finally:
+        _ai_slots.release()
 
 
 @router.post(
@@ -67,6 +84,7 @@ def index_case(case_id: int) -> dict[str, int]:
     if not settings.database_url:
         raise HTTPException(status_code=503, detail="Database indexing is not configured")
 
+    _acquire_ai_slot()
     try:
         scam_case = get_scam_case(settings.database_url, case_id)
         store = QdrantStore()
@@ -74,5 +92,7 @@ def index_case(case_id: int) -> dict[str, int]:
         index_scam_case(scam_case, store)
     except (LookupError, RuntimeError, ValueError) as error:
         raise HTTPException(status_code=503, detail="Scam-case indexing is unavailable") from error
+    finally:
+        _ai_slots.release()
 
     return {"caseId": case_id}

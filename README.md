@@ -54,7 +54,7 @@ cd ai-service
 $python = "C:\Users\U-ser\AppData\Local\Python\bin\python.exe"
 & $python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -78,7 +78,29 @@ pytest
 
 ## Configuration
 
-Never commit `.env` or provider keys. `PORT` must be between 1 and 65535. `AI_SERVICE_API_KEY` is required if `ENVIRONMENT=production`. When it is set, retrieval requests must send it in the `X-AI-Service-Key` header. Set the same value in `backend/.env` so the backend can call this service. The Qdrant and Gemini variables are not used by the health endpoint, but are required by the retrieval smoke test.
+Never commit environment files or provider keys. `PORT` must be between 1 and 65535. In production, `AI_SERVICE_API_KEY`, `QDRANT_API_KEY`, and `GEMINI_API_KEY` must each be at least 32 characters. Requests from the backend send `AI_SERVICE_API_KEY` in `X-AI-Service-Key`; configure the same value in both services. Configure `QDRANT_URL` and `QDRANT_API_KEY` together. Set `ALLOWED_HOSTS` to the comma-separated internal DNS names and public hostnames that may reach the service, such as `banteay-ai,ai.example.com,127.0.0.1`.
+
+Production also supports `QDRANT_TIMEOUT_SECONDS`, `GEMINI_TIMEOUT_MS`, `AI_MAX_CONCURRENCY`, `OCR_MAX_CONCURRENCY`, `OCR_MAX_IMAGE_BYTES`, `OCR_MAX_IMAGE_PIXELS`, and `MAX_REQUEST_BYTES`. Interactive FastAPI documentation and the OpenAPI route are disabled automatically when `ENVIRONMENT=production`.
+
+If direct scam-case indexing uses an external MySQL server, append `sslaccept=strict` to `DATABASE_URL`; add a URL-encoded `sslcert` path when the server CA is not in the system trust store.
+
+## Container deployment
+
+Build from this directory and inject secrets only at runtime:
+
+```powershell
+docker build -t banteay-ai .
+docker run --rm -p 8000:8000 `
+  -e ENVIRONMENT=production `
+  -e ALLOWED_HOSTS=localhost,127.0.0.1 `
+  -e AI_SERVICE_API_KEY=<32-plus-character-shared-key> `
+  -e GEMINI_API_KEY=<gemini-key> `
+  -e QDRANT_URL=https://qdrant.example.com:6333 `
+  -e QDRANT_API_KEY=<qdrant-key> `
+  banteay-ai
+```
+
+The image runs as a non-root user and includes English and Khmer Tesseract data. Put the service and Qdrant on a private network; for self-hosted Qdrant, configure the same value as `QDRANT__SERVICE__API_KEY` and enable TLS before exposing it outside that network.
 
 ## OCR image-to-text
 
@@ -172,6 +194,8 @@ The request shape matches the backend scan API, so the backend can call it witho
 
 ```json
 {
+  "riskLevel": "HIGH",
+  "confidenceScore": 0.96,
   "assessment": "SUSPICIOUS",
   "evidenceSufficiency": "SUFFICIENT",
   "riskSignals": [
@@ -194,8 +218,15 @@ The model assesses submitted content independently before using retrieval as
 supporting context. Every model-generated risk signal must quote the submitted
 input. The backend rejects ungrounded signal quotes and enforces an assessment
 floor from valid signals, deterministic findings, and URL-reputation evidence.
-No retrieval match and unavailable retrieval are explicitly treated as unknown,
-not as evidence of safety.
+Text and OCR scans containing Khmer script receive Khmer explanations and
+recommendations; English and unsupported-language text receive English output.
+URL-only scans use the supported English/Khmer interface preference because a
+URL may not contain enough natural-language content to detect.
+When retrieval returns no usable match or is unavailable, the model still
+returns an independent risk level, confidence score, explanation, and practical
+actions. The backend accepts that independent classification at 70% confidence
+or higher while retaining deterministic and URL-reputation safety floors. A
+missing match is treated as missing context, never as evidence of safety.
 
 Scam-case retrieval includes the moderated case description, sample text, and
 indicators in the LLM context. Re-run `python -m scripts.index_scam_cases` after

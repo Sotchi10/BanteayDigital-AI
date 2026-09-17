@@ -4,6 +4,7 @@ from io import BytesIO
 from pathlib import Path
 import shutil
 import sys
+import warnings
 
 from PIL import Image, UnidentifiedImageError
 import pytesseract
@@ -74,15 +75,20 @@ def extract_text(image_bytes: bytes, settings: Settings) -> str:
     config = _tessdata_config(settings)
     languages = _usable_languages(settings, config)
     try:
-        with Image.open(BytesIO(image_bytes)) as image:
-            image.load()
-            return pytesseract.image_to_string(
-                image,
-                lang=languages,
-                config=config,
-                timeout=settings.ocr_timeout_seconds,
-            ).strip()
-    except (UnidentifiedImageError, OSError) as error:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(image_bytes)) as image:
+                width, height = image.size
+                if width <= 0 or height <= 0 or width * height > settings.ocr_max_image_pixels:
+                    raise OcrError("The image dimensions exceed the OCR safety limit")
+                image.load()
+                return pytesseract.image_to_string(
+                    image,
+                    lang=languages,
+                    config=config,
+                    timeout=settings.ocr_timeout_seconds,
+                ).strip()
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning) as error:
         raise OcrError("The upload is not a readable image") from error
     except TesseractNotFoundError as error:
         raise OcrError("Tesseract executable is not available") from error

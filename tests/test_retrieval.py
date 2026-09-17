@@ -57,6 +57,24 @@ def test_retrieve_returns_qdrant_matches(monkeypatch) -> None:
     }
 
 
+def test_qdrant_store_passes_the_configured_api_key(monkeypatch) -> None:
+    from pydantic import SecretStr
+    from app.repositories import qdrant_store
+
+    captured = {}
+    settings = get_settings().model_copy(update={
+        "qdrant_api_key": SecretStr("qdrant-secret"),
+        "qdrant_timeout_seconds": 7,
+    })
+    monkeypatch.setattr(qdrant_store, "get_settings", lambda: settings)
+    monkeypatch.setattr(qdrant_store, "QdrantClient", lambda **options: captured.update(options) or object())
+
+    qdrant_store.QdrantStore()
+
+    assert captured["api_key"] == "qdrant-secret"
+    assert captured["timeout"] == 7
+
+
 def test_retrieval_query_labels_the_input_type() -> None:
     request = retrieval.RetrieveRequest(type="URL", value=" https://example.test/login ")
 
@@ -76,6 +94,8 @@ def test_analyze_returns_grounded_json(monkeypatch) -> None:
         retrieval,
         "analyze_scan",
         lambda request: GroundedAnalysis(
+            riskLevel="HIGH",
+            confidenceScore=0.94,
             assessment="SUSPICIOUS",
             evidenceSufficiency="SUFFICIENT",
             riskSignals=[
@@ -114,6 +134,8 @@ def test_analyze_returns_grounded_json(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.json() == {
+        "riskLevel": "HIGH",
+        "confidenceScore": 0.94,
         "assessment": "SUSPICIOUS",
         "evidenceSufficiency": "SUFFICIENT",
         "riskSignals": [
@@ -129,13 +151,41 @@ def test_analyze_returns_grounded_json(monkeypatch) -> None:
     }
 
 
-def test_analysis_prompt_uses_requested_explanation_language() -> None:
+def test_analysis_prompt_uses_khmer_for_khmer_scan_content() -> None:
     from app.schemas.analysis import AnalyzeRequest
     from app.services.reasoning_service import build_prompt
 
-    prompt = build_prompt(AnalyzeRequest(type="TEXT", value="Send your OTP", language="km"))
+    prompt = build_prompt(AnalyzeRequest(type="TEXT", value="សូមផ្ញើលេខកូដ OTP", language="en"))
 
-    assert "summary and every recommended action in Khmer" in prompt
+    assert "language for this scan is Khmer" in prompt
+    assert "including summary, riskSignals messages" in prompt
+
+
+def test_analysis_prompt_uses_english_for_english_or_unsupported_text() -> None:
+    from app.schemas.analysis import AnalyzeRequest
+    from app.services.reasoning_service import build_prompt
+
+    english_prompt = build_prompt(
+        AnalyzeRequest(type="TEXT", value="Send your OTP", language="km")
+    )
+    unsupported_prompt = build_prompt(
+        AnalyzeRequest(type="TEXT", value="今すぐコードを送信してください", language="km")
+    )
+
+    assert "language for this scan is English" in english_prompt
+    assert "language for this scan is English" in unsupported_prompt
+    assert "indeterminate input languages must use English" in unsupported_prompt
+
+
+def test_url_analysis_uses_supported_interface_language() -> None:
+    from app.schemas.analysis import AnalyzeRequest
+    from app.services.reasoning_service import build_prompt
+
+    prompt = build_prompt(
+        AnalyzeRequest(type="URL", value="https://example.test/login", language="km")
+    )
+
+    assert "language for this scan is Khmer" in prompt
 
 
 def test_analysis_prompt_treats_missing_retrieval_as_unknown_not_safe() -> None:
@@ -156,3 +206,6 @@ def test_analysis_prompt_treats_missing_retrieval_as_unknown_not_safe() -> None:
     assert "NO_STRONG_WARNING_SIGNS" in prompt
     assert "affirmatively benign" in prompt
     assert "Retrieval status: AVAILABLE" in prompt
+    assert "This classification is required even when retrieval returns no cases" in prompt
+    assert "Missing retrieval context alone must not" in prompt
+    assert "confidenceScore" in prompt

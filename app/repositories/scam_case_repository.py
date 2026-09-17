@@ -12,12 +12,25 @@ def connect(database_url: str):
     if url.scheme != "mysql" or not url.hostname or not url.path:
         raise ValueError("DATABASE_URL must be a valid mysql:// URL")
 
+    parameters = dict(item.split("=", 1) for item in url.query.split("&") if "=" in item)
+    ssl_accept = parameters.get("sslaccept")
+    ssl_cert = unquote(parameters["sslcert"]) if parameters.get("sslcert") else None
+    ssl = None
+    if ssl_accept == "strict" or ssl_cert:
+        ssl = {"check_hostname": True}
+        if ssl_cert:
+            ssl["ca"] = ssl_cert
+
     return pymysql.connect(
         host=url.hostname,
         port=url.port or 3306,
         user=unquote(url.username or ""),
         password=unquote(url.password or ""),
         database=unquote(url.path.lstrip("/")),
+        ssl=ssl,
+        connect_timeout=10,
+        read_timeout=15,
+        write_timeout=15,
         cursorclass=DictCursor,
     )
 

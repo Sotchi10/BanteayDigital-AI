@@ -16,7 +16,15 @@ class QdrantStore:
         settings = get_settings()
         self.collection_name = settings.qdrant_collection
         self.vector_size = settings.embedding_dimensions
-        self.client = QdrantClient(url=str(settings.qdrant_url))
+        self.client = QdrantClient(
+            url=str(settings.qdrant_url),
+            api_key=(
+                settings.qdrant_api_key.get_secret_value()
+                if settings.qdrant_api_key is not None
+                else None
+            ),
+            timeout=settings.qdrant_timeout_seconds,
+        )
 
     def ensure_collection(self) -> None:
         """Create the collection or confirm its vector size."""
